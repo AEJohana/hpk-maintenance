@@ -1,0 +1,1 @@
+<span class="badge {{ $status }}">{{ ['draft'=>'Draft','pending'=>'Menunggu verifikasi','revision'=>'Perlu revisi','verified'=>'Terverifikasi','approved'=>'Disetujui','rejected'=>'Ditolak'][$status] ?? $status }}</span>

@@ -1,0 +1,3 @@
+@extends('layout')
+@section('title','Masuk')
+@section('content')<div class="card login"><span class="badge">DAILY CHECK MESIN</span><h1>Selamat datang</h1><p class="muted">Masuk menggunakan akun bagian atau maintenance.</p><form method="post" action="{{ url('/login') }}" class="stack">@csrf<div><label>Email akun</label><input type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"></div><div><label>Kata sandi</label><input type="password" name="password" required autocomplete="current-password"></div><button style="width:100%">Masuk</button></form></div>@endsection

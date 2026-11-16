@@ -10,6 +10,11 @@ class MaintenanceSchedule extends Model
 
     protected $casts = ['weekdays' => 'array', 'starts_on' => 'date', 'active' => 'boolean'];
 
+    public function machine()
+    {
+        return $this->belongsTo(Machine::class);
+    }
+
     public function checklist()
     {
         return $this->belongsTo(Checklist::class);

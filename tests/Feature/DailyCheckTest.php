@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AccessRole;
+use App\Models\Branch;
 use App\Models\Checklist;
 use App\Models\Department;
 use App\Models\Inspection;
@@ -12,6 +14,7 @@ use App\Models\TransferRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -36,21 +39,30 @@ class DailyCheckTest extends TestCase
     {
         parent::setUp();
         $this->travelTo(now()->setDate(2026, 11, 13)->setTime(10, 0));
-        $da = Department::create(['name' => 'Produksi A']);
-        $db = Department::create(['name' => 'Produksi B']);
+        $branch = Branch::first()->id;
+        $da = Department::create(['name' => 'Produksi A', 'branch_id' => $branch]);
+        $db = Department::create(['name' => 'Produksi B', 'branch_id' => $branch]);
         $this->a = $this->account('a', 'department', $da->id);
         $this->b = $this->account('b', 'department', $db->id);
         $this->reviewer = $this->account('reviewer', 'maintenance');
         $this->admin = $this->account('admin', 'admin');
-        $l = Location::create(['name' => 'Line 1', 'area' => 'Gedung A']);
-        $this->machine = Machine::create(['code' => 'MC-001', 'name' => 'Mesin potong', 'qr_value' => 'existing://machine/001', 'department_id' => $da->id, 'location_id' => $l->id]);
-        $this->checklist = Checklist::create(['name' => 'Pemeriksaan harian', 'items' => [['label' => 'Kebersihan', 'type' => 'condition', 'unit' => ''], ['label' => 'Suhu', 'type' => 'number', 'unit' => 'C']]]);
+        $l = Location::create(['name' => 'Line 1', 'area' => 'Gedung A', 'branch_id' => $branch]);
+        $this->machine = Machine::create(['branch_id' => $branch, 'code' => 'MC-001', 'name' => 'Mesin potong', 'qr_value' => 'existing://machine/001', 'department_id' => $da->id, 'location_id' => $l->id]);
+        $this->checklist = Checklist::create(['branch_id' => $branch, 'name' => 'Pemeriksaan harian', 'items' => [['label' => 'Kebersihan', 'type' => 'condition', 'unit' => ''], ['label' => 'Suhu', 'type' => 'number', 'unit' => 'C']]]);
         MaintenanceSchedule::create(['machine_id' => $this->machine->id, 'checklist_id' => $this->checklist->id, 'period' => 'daily', 'starts_on' => '2026-01-01', 'weekdays' => [1, 2, 3, 4, 5, 6, 7]]);
     }
 
     private function account($name, $role, $department = null): User
     {
-        return User::create(['name' => $name, 'email' => "$name@example.test", 'password' => Hash::make('password1234'), 'role' => $role, 'department_id' => $department]);
+        $user = User::create(['name' => $name, 'email' => "$name@example.test", 'password' => Hash::make('password1234'), 'is_admin' => $role === 'admin', 'role' => $role, 'active' => true, 'role_id' => AccessRole::where('type', $role)->first()->id, 'branch_id' => $role === 'admin' ? null : Branch::first()->id, 'department_id' => $department]);
+        $modules = match ($role) {
+            'department' => ['monitoring', 'daily'], 'maintenance' => ['monitoring', 'verification', 'transfers'], default => []
+        };
+        foreach ($modules as $module) {
+            DB::table('user_modules')->insert(['user_id' => $user->id, 'module' => $module]);
+        }
+
+        return $user;
     }
 
     private function open(?User $user = null): Inspection
@@ -149,7 +161,7 @@ class DailyCheckTest extends TestCase
         $i = $this->open();
         $this->actingAs($this->b)->post(route('inspections.save', $i), $this->answers())->assertForbidden();
         $this->get(route('inspections.show', $i))->assertForbidden();
-        $this->actingAs($this->a)->get('/?department='.$this->b->department_id)->assertOk()->assertSee('Mesin potong');
+        $this->actingAs($this->a)->get('/monitoring?department='.$this->b->department_id)->assertOk()->assertSee('Mesin potong');
     }
 
     public function test_attachments_are_private_and_validated(): void
@@ -202,7 +214,7 @@ class DailyCheckTest extends TestCase
     public function test_all_pages_render_and_admin_master_management(): void
     {
         $i = $this->open();
-        foreach (['/', '/daily-check', route('inspections.show', $i), route('machines.show', $this->machine)] as $url) {
+        foreach (['/monitoring', '/daily-check', route('inspections.show', $i), route('machines.show', $this->machine)] as $url) {
             $this->get($url)->assertOk();
         }
         $this->actingAs($this->reviewer)->get('/reviews')->assertOk();
@@ -214,8 +226,8 @@ class DailyCheckTest extends TestCase
             };
             $this->get('/admin?tab='.$tab.'&edit='.$id)->assertOk();
         }
-        $this->post('/admin/departments',['name' => 'Utilities'])->assertRedirect();
-        $this->assertDatabaseHas('departments',['name' => 'Utilities']);
-        $this->post('/admin/users',['name' => 'Utility', 'email' => 'utility@example.test', 'password' => 'password1234', 'role' => 'department'])->assertSessionHasErrors('department_id');
+        $this->post('/admin/departments', ['name' => 'Utilities'])->assertRedirect();
+        $this->assertDatabaseHas('departments', ['name' => 'Utilities']);
+        $this->post('/admin/users', ['name' => 'Utility', 'email' => 'utility@example.test', 'password' => 'password1234', 'modules' => ['daily'], 'is_admin' => 0, 'active' => 1])->assertSessionHasErrors('department_id');
     }
 }

@@ -8,6 +8,11 @@ class TransferRequest extends Model
 {
     protected $guarded = ['id'];
 
+    public function requester()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function machine()
     {
         return $this->belongsTo(Machine::class);

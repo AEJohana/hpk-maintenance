@@ -10,6 +10,21 @@ class Inspection extends Model
 
     protected $casts = ['inspection_date' => 'date', 'snapshot' => 'array', 'answers' => 'array', 'photos' => 'array', 'submitted_at' => 'datetime', 'verified_at' => 'datetime'];
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function submitter()
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
     public function machine()
     {
         return $this->belongsTo(Machine::class);

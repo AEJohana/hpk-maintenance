@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Machine extends Model
 {
-    protected $guarded = ['id'];
+    protected $casts = ['branch_id' => 'integer', 'active' => 'boolean'];
 
-    protected $casts = ['active' => 'boolean'];
+    protected $guarded = ['id'];
 
     public function department()
     {

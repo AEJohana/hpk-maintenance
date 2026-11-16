@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Access;
 use Illuminate\Database\Eloquent\Model;
 
 class ActivityLog extends Model
@@ -17,6 +18,6 @@ class ActivityLog extends Model
 
     public static function record($subject, string $action, array $details = []): void
     {
-        static::create(['user_id' => auth()->id(), 'subject_type' => $subject->getTable(), 'subject_id' => $subject->id, 'action' => $action, 'details' => $details]);
+        static::create(['branch_id' => $subject instanceof AccessRole || $subject instanceof Branch ? null : Access::branch($subject), 'user_id' => auth()->id(), 'subject_type' => $subject->getTable(), 'subject_id' => $subject->id, 'action' => $action, 'details' => $details]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AccessRole;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
@@ -30,7 +31,7 @@ class CreateMaintenanceAdmin extends Command
 
             return 1;
         }
-        User::create(['name' => $this->option('name'), 'email' => $this->argument('email'), 'password' => Hash::make($password), 'role' => 'admin']);
+        User::create(['name' => $this->option('name'), 'email' => $this->argument('email'), 'password' => Hash::make($password), 'is_admin' => true, 'role' => 'admin', 'role_id' => AccessRole::where('type', 'admin')->firstOrFail()->id, 'active' => true]);
         $this->info('Administrator berhasil dibuat.');
 
         return 0;

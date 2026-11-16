@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Checklist extends Model
 {
-    protected $guarded = ['id'];
+    protected $casts = ['branch_id' => 'integer', 'items' => 'array'];
 
-    protected $casts = ['items' => 'array'];
+    protected $guarded = ['id'];
 }

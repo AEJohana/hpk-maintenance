@@ -22,7 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'department_id',
+        'department_id', 'role_id', 'branch_id', 'active', 'is_admin', 'position',
     ];
 
     /**
@@ -41,6 +41,36 @@ class User extends Authenticatable
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime',
+        'email_verified_at' => 'datetime', 'active' => 'boolean', 'is_admin' => 'boolean', 'department_id' => 'integer', 'branch_id' => 'integer',
     ];
+
+    public function modules()
+    {
+        return $this->hasMany(UserModule::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function hasModule(string $key): bool
+    {
+        return $this->is_admin || $this->modules()->where('module', $key)->exists();
+    }
+
+    public function accessRole()
+    {
+        return $this->belongsTo(AccessRole::class, 'role_id');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function getRoleAttribute($legacy)
+    {
+        return $this->is_admin ? 'admin' : 'user';
+    }
 }

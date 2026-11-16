@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Inspection;
 use App\Models\Machine;
+use App\Models\TransferRequest;
+use App\Services\Access;
 use App\Services\DailyCheckService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,8 +17,9 @@ class DailyCheckController extends Controller
 {
     public function scan(Request $request, DailyCheckService $service)
     {
+        Access::require('inspections.scan');
         $data = $request->validate(['code' => 'required|string|max:255', 'lookup' => 'required|in:qr,code']);
-        $machine = Machine::where($data['lookup'] === 'qr' ? 'qr_value' : 'code', $data['code'])->first();
+        $machine = Access::scope(Machine::query())->where($data['lookup'] === 'qr' ? 'qr_value' : 'code', $data['code'])->first();
         if (! $machine) {
             return back()->withErrors(['code' => 'QR atau kode mesin belum terdaftar.']);
         }
@@ -34,19 +37,28 @@ class DailyCheckController extends Controller
         $this->authorizeView($inspection);
         $logs = ActivityLog::with('user')->where('subject_type', 'inspections')->where('subject_id', $inspection->id)->orderBy('id')->get();
 
-        return view('inspections.show', compact('inspection', 'logs'));
+        $pendingTransfer = TransferRequest::where('machine_id', $inspection->machine_id)->where('to_department_id', auth()->user()->department_id)->where('status', 'pending')->first();
+
+        return view('inspections.show', compact('inspection', 'logs', 'pendingTransfer'));
     }
 
     private function authorizeView(Inspection $inspection): void
     {
+        Access::require('inspections.view');
+        Access::object($inspection);
         $u = auth()->user();
-        abort_unless(in_array($u->role, ['admin', 'maintenance']) || in_array($u->department_id, [$inspection->department_id, $inspection->owner_department_id, $inspection->machine->department_id], true)
+        abort_unless($u->is_admin || $u->hasModule('verification') || ($u->hasModule('monitoring') && ! $u->hasModule('daily')) || in_array($u->department_id, [$inspection->department_id, $inspection->owner_department_id, $inspection->machine->department_id], true)
             || session('scanned_inspections.'.$inspection->id) === $u->id, 403);
     }
 
     public function save(Request $request, Inspection $inspection, DailyCheckService $service)
     {
         $request->validate(['action' => 'required|in:draft,submit']);
+        Access::require($request->action === 'submit' ? 'inspections.submit' : 'inspections.draft');
+        Access::object($inspection);
+        if ($request->action === 'submit' && $inspection->machine->department_id !== auth()->user()->department_id) {
+            Access::require('transfers.request');
+        }
         DB::transaction(function () use ($request, $inspection, $service) {
             $machine = Machine::whereKey($inspection->machine_id)->lockForUpdate()->firstOrFail();
             $inspection = Inspection::whereKey($inspection->id)->lockForUpdate()->firstOrFail();
@@ -69,7 +81,7 @@ class DailyCheckController extends Controller
                 }
             }
             $inspection->update(['answers' => $validated['answers'] ?? [], 'photos' => $photos,
-                'status' => $submit ? 'pending' : $inspection->status, 'submitted_at' => $submit ? now() : $inspection->submitted_at]);
+                'status' => $submit ? 'pending' : $inspection->status, 'submitted_by' => $submit ? auth()->id() : $inspection->submitted_by, 'submitted_at' => $submit ? now() : $inspection->submitted_at]);
             ActivityLog::record($inspection, $submit ? 'submitted' : 'draft_saved', ['answers' => $inspection->answers, 'photos' => $photos]);
             if ($submit) {
                 $service->requestTransfer($machine);
@@ -81,6 +93,8 @@ class DailyCheckController extends Controller
 
     public function transfer(Inspection $inspection, DailyCheckService $service)
     {
+        Access::require('transfers.request');
+        Access::object($inspection);
         DB::transaction(function () use ($inspection, $service) {
             $machine = Machine::whereKey($inspection->machine_id)->lockForUpdate()->firstOrFail();
             abort_unless($machine->active, 422);
@@ -96,6 +110,6 @@ class DailyCheckController extends Controller
         $path = $inspection->photos[$index] ?? null;
         abort_unless($path && Storage::disk('local')->exists($path), 404);
 
-        return response()->file(Storage::disk('local')->path($path),['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
+        return response()->file(Storage::disk('local')->path($path), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 }

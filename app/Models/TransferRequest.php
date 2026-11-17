@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class TransferRequest extends Model
 {
+    protected $table = 'trnks_transfer_requests';
+
     protected $guarded = ['id'];
 
     public function requester()

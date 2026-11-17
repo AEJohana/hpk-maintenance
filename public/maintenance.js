@@ -11,7 +11,7 @@
 
         setOpen(false);
         toggle.classList.add('is-ready');
-        navigation.closest('.app-shell').classList.add('navigation-ready');
+        navigation.closest('.app-layout, .app-shell')?.classList.add('navigation-ready');
         toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
@@ -20,10 +20,10 @@
             }
         });
         document.addEventListener('click', (event) => {
-            if (!event.target.closest('.app-shell')) setOpen(false);
+            if (!event.target.closest('.site-sidebar') && !event.target.closest('.mobile-header') && !event.target.closest('.app-shell')) setOpen(false);
         });
         document.addEventListener('focusin', (event) => {
-            if (!event.target.closest('.app-shell')) setOpen(false);
+            if (!event.target.closest('.site-sidebar') && !event.target.closest('.mobile-header') && !event.target.closest('.app-shell')) setOpen(false);
         });
         mobile.addEventListener('change', () => {
             const focusWasInMenu = navigation.contains(document.activeElement);

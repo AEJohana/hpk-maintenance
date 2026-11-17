@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Location extends Model
 {
-    protected $casts = ['branch_id' => 'integer'];
+    protected $table = 'mstrs_locations';
+
+    protected $casts = ['branch_id' => 'integer', 'active' => 'boolean'];
 
     protected $guarded = ['id'];
 }

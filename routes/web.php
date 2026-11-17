@@ -24,11 +24,20 @@ Route::middleware(['auth', AccountAccess::class])->group(function () {
         $modules = collect(Modules::all())->filter(fn ($module, $key) => auth()->user()->hasModule($key) && ($key !== 'daily' || auth()->user()->department_id));
         $pendingTransfers = auth()->user()->can('transfers.decide') ? Access::scope(TransferRequest::query())->where('status', 'pending')->count() : 0;
 
-        return view('home', compact('modules', 'pendingTransfers'));
+        $user = auth()->user();
+        $myMachines = $user->myMachinesQuery()->where('active', true)->with(['inspections' => fn ($q) => $q->whereDate('inspection_date', today())])->get();
+        $myTotal = $myMachines->count();
+        $myChecked = $myMachines->filter(fn ($m) => $m->inspections->isNotEmpty())->count();
+        $myNg = $myMachines->filter(fn ($m) => $m->inspections->contains(fn ($i) => $i->hasNg()))->count();
+
+        return view('home', compact('modules', 'pendingTransfers', 'myTotal', 'myChecked', 'myNg', 'user'));
     })->name('home');
     Route::get('/monitoring', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/my-assets', [DashboardController::class, 'myAssets'])->name('my-assets');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/machines/{machine}', [DashboardController::class, 'machine'])->name('machines.show');
+    Route::get('/machines/{machine}/print-qr', [DashboardController::class, 'printQr'])->name('machines.print-qr');
+    Route::get('/machines/{machine}/qr-code.svg', [DashboardController::class, 'qrCodeSvg'])->name('machines.qr-svg');
     Route::get('/inspections/{inspection}', [DailyCheckController::class, 'show'])->name('inspections.show');
     Route::get('/inspections/{inspection}/photos/{index}', [DailyCheckController::class, 'photo'])->whereNumber('index')->name('inspections.photo');
     Route::group([], function () {
@@ -45,5 +54,6 @@ Route::middleware(['auth', AccountAccess::class])->group(function () {
     Route::group([], function () {
         Route::get('/admin', [AdminController::class, 'index'])->name('admin');
         Route::post('/admin/{type}', [AdminController::class, 'save'])->name('admin.save');
+        Route::post('/admin/{type}/{id}/toggle-active', [AdminController::class, 'toggleActive'])->name('admin.toggle-active');
     });
 });

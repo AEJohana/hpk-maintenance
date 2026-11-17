@@ -19,7 +19,18 @@ class DailyCheckController extends Controller
     {
         Access::require('inspections.scan');
         $data = $request->validate(['code' => 'required|string|max:255', 'lookup' => 'required|in:qr,code']);
-        $machine = Access::scope(Machine::query())->where($data['lookup'] === 'qr' ? 'qr_value' : 'code', $data['code'])->first();
+        $code = trim($data['code']);
+        if ($data['lookup'] === 'qr') {
+            $machine = Access::scope(Machine::query())->where('qr_value', $code)->first();
+            if (! $machine && str_contains($code, ' / ')) {
+                $segments = array_map('trim', explode(' / ', $code));
+                if (isset($segments[1]) && $segments[1] !== '') {
+                    $machine = Access::scope(Machine::query())->where('code', $segments[1])->first();
+                }
+            }
+        } else {
+            $machine = Access::scope(Machine::query())->where('code', $code)->first();
+        }
         if (! $machine) {
             return back()->withErrors(['code' => 'QR atau kode mesin belum terdaftar.']);
         }

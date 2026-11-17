@@ -3,6 +3,30 @@
 @section('content')
 <div class="heading"><div><span class="eyebrow">RUANG KERJA</span><h1>Modul saya</h1><p class="muted">Selamat datang, {{ auth()->user()->name }}. Pilih modul untuk mulai bekerja.</p></div><span class="workspace-badge">@include('partials.icon', ['name' => 'verification']) Daily check mesin</span></div>
 @if($pendingTransfers)<div class="alert success" role="status"><div><strong>{{ $pendingTransfers }} permintaan perpindahan mesin menunggu keputusan.</strong> <a href="{{ route('reviews') }}#transfers">Buka verifikasi perpindahan →</a></div></div>@endif
+
+@if($myTotal > 0)
+    <div class="card" style="margin-bottom: 24px; background: linear-gradient(135deg, #f8faff 0%, #edf3ff 100%); border-color: #dce6fc;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <span class="eyebrow" style="color: var(--blue);">LINE TANGGUNG JAWAB SAYA</span>
+                <h2 style="margin: 0 0 6px;">{{ $user->location?->name ?? $user->department?->name ?? 'Aset Mesin Saya' }}</h2>
+                <p class="muted" style="margin: 0;">
+                    Terdapat <strong>{{ $myTotal }} aset mesin</strong> di bawah tanggung jawab Anda. 
+                    Hari ini: <strong>{{ $myChecked }} dari {{ $myTotal }} mesin</strong> telah diperiksa.
+                    @if($myNg > 0)
+                        <span class="badge rejected" style="margin-left: 6px;">{{ $myNg }} Temuan NG</span>
+                    @endif
+                </p>
+            </div>
+            <div>
+                <a class="button" href="{{ route('my-assets') }}">
+                    Buka Aset Line Saya →
+                </a>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="module-grid">
     @forelse($modules as $key=>$module)
         <a class="card module-card" href="{{ route($module['route']) }}">

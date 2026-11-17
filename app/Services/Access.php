@@ -86,7 +86,7 @@ class Access
 
     public static function inBranch(Builder $query, int $branch): Builder
     {
-        return in_array($query->getModel()->getTable(), ['maintenance_schedules', 'inspections', 'transfer_requests'])
+        return in_array($query->getModel()->getTable(), ['maintenance_schedules', 'inspections', 'transfer_requests', 'trnks_maintenance_schedules', 'trnks_inspections', 'trnks_transfer_requests'])
             ? $query->whereHas('machine', fn ($q) => $q->where('branch_id', $branch))
             : $query->where($query->getModel()->qualifyColumn('branch_id'), $branch);
     }

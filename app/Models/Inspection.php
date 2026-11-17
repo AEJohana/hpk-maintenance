@@ -6,9 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class Inspection extends Model
 {
+    protected $table = 'trnks_inspections';
+
     protected $guarded = ['id'];
 
-    protected $casts = ['inspection_date' => 'date', 'snapshot' => 'array', 'answers' => 'array', 'photos' => 'array', 'submitted_at' => 'datetime', 'verified_at' => 'datetime'];
+    protected $casts = [
+        'inspection_date' => 'date',
+        'snapshot' => 'array',
+        'answers' => 'array',
+        'photos' => 'array',
+        'submitted_at' => 'datetime',
+        'verified_at' => 'datetime',
+    ];
 
     public function creator()
     {

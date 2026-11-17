@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $table = 'mstrs_users';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -22,7 +24,13 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'department_id', 'role_id', 'branch_id', 'active', 'is_admin', 'position',
+        'department_id',
+        'location_id',
+        'role_id',
+        'branch_id',
+        'active',
+        'is_admin',
+        'position',
     ];
 
     /**
@@ -41,7 +49,12 @@ class User extends Authenticatable
      * @var array<string, string>
      */
     protected $casts = [
-        'email_verified_at' => 'datetime', 'active' => 'boolean', 'is_admin' => 'boolean', 'department_id' => 'integer', 'branch_id' => 'integer',
+        'email_verified_at' => 'datetime',
+        'active' => 'boolean',
+        'is_admin' => 'boolean',
+        'department_id' => 'integer',
+        'location_id' => 'integer',
+        'branch_id' => 'integer',
     ];
 
     public function modules()
@@ -52,6 +65,27 @@ class User extends Authenticatable
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function myMachinesQuery()
+    {
+        return Machine::query()->where(function ($q) {
+            if ($this->location_id && $this->department_id) {
+                $q->where('location_id', $this->location_id)
+                    ->orWhere('department_id', $this->department_id);
+            } elseif ($this->location_id) {
+                $q->where('location_id', $this->location_id);
+            } elseif ($this->department_id) {
+                $q->where('department_id', $this->department_id);
+            } else {
+                $q->whereRaw('1 = 1');
+            }
+        });
     }
 
     public function hasModule(string $key): bool

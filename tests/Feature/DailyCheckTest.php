@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AccessRole;
+use App\Models\ActivityLog;
 use App\Models\Branch;
 use App\Models\Checklist;
 use App\Models\Department;
@@ -59,7 +60,7 @@ class DailyCheckTest extends TestCase
             'department' => ['monitoring', 'daily'], 'maintenance' => ['monitoring', 'verification', 'transfers'], default => []
         };
         foreach ($modules as $module) {
-            DB::table('user_modules')->insert(['user_id' => $user->id, 'module' => $module]);
+            DB::table((new \App\Models\UserModule)->getTable())->insert(['user_id' => $user->id, 'module' => $module]);
         }
 
         return $user;
@@ -91,7 +92,7 @@ class DailyCheckTest extends TestCase
     {
         $this->actingAs($this->a)->post('/daily-check', ['code' => 'unknown', 'lookup' => 'qr'])->assertSessionHasErrors('code');
         $this->post('/daily-check', ['code' => 'MC-001', 'lookup' => 'code'])->assertRedirect();
-        $this->assertDatabaseCount('inspections', 1);
+        $this->assertDatabaseCount(Inspection::class, 1);
         $this->machine->update(['active' => false]);
         $this->post('/daily-check', ['code' => 'MC-001', 'lookup' => 'code'])->assertStatus(422);
         $this->machine->update(['active' => true]);
@@ -104,7 +105,7 @@ class DailyCheckTest extends TestCase
     {
         $i = $this->open();
         $this->open();
-        $this->assertDatabaseCount('inspections', 1);
+        $this->assertDatabaseCount(Inspection::class, 1);
         $this->post(route('inspections.save', $i), ['action' => 'draft'])->assertRedirect();
         $bad = $this->answers('NG');
         $bad['answers'][0]['note'] = '';
@@ -113,7 +114,7 @@ class DailyCheckTest extends TestCase
         $this->assertSame('pending', $i->fresh()->status);
         $this->assertTrue($i->fresh()->hasNg());
         $this->post(route('inspections.save', $i), $this->answers())->assertStatus(409);
-        $this->assertDatabaseCount('transfer_requests', 0);
+        $this->assertDatabaseCount(TransferRequest::class, 0);
     }
 
     public function test_snapshot_revision_and_verification_history(): void
@@ -128,7 +129,7 @@ class DailyCheckTest extends TestCase
         $this->actingAs($this->reviewer)->post(route('reviews.inspection', $i), ['decision' => 'verified'])->assertRedirect();
         $this->assertSame('verified', $i->fresh()->status);
         $this->assertNotNull($i->fresh()->verified_at);
-        $this->assertDatabaseHas('activity_logs', ['action' => 'revision']);
+        $this->assertDatabaseHas(ActivityLog::class, ['action' => 'revision']);
     }
 
     public function test_cross_department_transfer_is_independent_and_preserves_owner(): void
@@ -136,7 +137,7 @@ class DailyCheckTest extends TestCase
         $i = $this->open($this->b);
         $this->post(route('inspections.save', $i), $this->answers())->assertRedirect();
         $this->post(route('inspections.transfer', $i))->assertRedirect();
-        $this->assertDatabaseCount('transfer_requests', 1);
+        $this->assertDatabaseCount(TransferRequest::class, 1);
         $this->assertSame($this->a->department_id, $this->machine->fresh()->department_id);
         $t = TransferRequest::firstOrFail();
         $this->actingAs($this->reviewer)->post(route('reviews.transfer', $t), ['decision' => 'approved', 'reason' => 'Sudah di area B'])->assertRedirect();
@@ -193,7 +194,7 @@ class DailyCheckTest extends TestCase
         $this->open();
         $this->travel(1)->days();
         $this->open();
-        $this->assertDatabaseCount('inspections', 2);
+        $this->assertDatabaseCount(Inspection::class, 2);
         $s->update(['period' => 'monthly']);
         $this->travel(1)->days();
         $this->post('/daily-check', ['code' => 'MC-001', 'lookup' => 'code'])->assertSessionHasErrors('machine');
@@ -207,8 +208,8 @@ class DailyCheckTest extends TestCase
         $this->get(route('inspections.show', $i))->assertOk()->assertSee('Menunggu verifikasi');
         $this->post(route('inspections.save', $i), $this->answers())->assertForbidden();
         $this->post(route('inspections.transfer', $i))->assertRedirect();
-        $this->assertDatabaseCount('inspections', 1);
-        $this->assertDatabaseCount('transfer_requests', 1);
+        $this->assertDatabaseCount(Inspection::class, 1);
+        $this->assertDatabaseCount(TransferRequest::class, 1);
     }
 
     public function test_all_pages_render_and_admin_master_management(): void
@@ -227,7 +228,7 @@ class DailyCheckTest extends TestCase
             $this->get('/admin?tab='.$tab.'&edit='.$id)->assertOk();
         }
         $this->post('/admin/departments', ['name' => 'Utilities'])->assertRedirect();
-        $this->assertDatabaseHas('departments', ['name' => 'Utilities']);
+        $this->assertDatabaseHas(Department::class, ['name' => 'Utilities']);
         $this->post('/admin/users', ['name' => 'Utility', 'email' => 'utility@example.test', 'password' => 'password1234', 'modules' => ['daily'], 'is_admin' => 0, 'active' => 1])->assertSessionHasErrors('department_id');
     }
 }

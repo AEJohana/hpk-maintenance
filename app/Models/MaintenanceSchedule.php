@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class MaintenanceSchedule extends Model
 {
+    protected $table = 'trnks_maintenance_schedules';
+
     protected $guarded = ['id'];
 
     protected $casts = ['weekdays' => 'array', 'starts_on' => 'date', 'active' => 'boolean'];

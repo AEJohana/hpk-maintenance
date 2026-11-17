@@ -25,7 +25,7 @@ class AuthorizationTest extends TestCase
     {
         $u = User::create(['name' => 'Kepala Regu '.uniqid(), 'email' => uniqid().'@test.example', 'password' => Hash::make('password1234'), 'is_admin' => $admin, 'active' => true, 'position' => 'Kepala Regu Produksi', 'branch_id' => $admin ? null : $branch, 'department_id' => $department]);
         foreach ($modules as $module) {
-            DB::table('user_modules')->insert(['user_id' => $u->id, 'module' => $module]);
+            DB::table((new \App\Models\UserModule)->getTable())->insert(['user_id' => $u->id, 'module' => $module]);
         }
 
         return $u;
@@ -78,7 +78,7 @@ class AuthorizationTest extends TestCase
         $this->assertEquals($kr->id, $i->fresh()->submitted_by);
         $this->get('/inspections/'.$i->id)->assertSee('sedang menunggu verifikasi')->assertSee($kr->name);
         $this->post('/inspections/'.$i->id.'/transfer')->assertRedirect();
-        $this->assertDatabaseCount('transfer_requests', 1);
+        $this->assertDatabaseCount(TransferRequest::class, 1);
         $this->actingAs($reviewer)->get('/')->assertOk()->assertSee('1 permintaan perpindahan mesin menunggu keputusan');
         $this->post('/reviews/transfers/'.$transfer->id, ['decision' => 'approved', 'reason' => 'Mesin sudah dipindahkan'])->assertRedirect();
         $this->assertEquals($new->id, $m->fresh()->department_id);
@@ -93,7 +93,7 @@ class AuthorizationTest extends TestCase
         $m = $this->machine();
         $u = $this->user(['daily'], false, 1, $m->department_id);
         $this->actingAs($u)->get('/daily-check')->assertOk();
-        DB::table('user_modules')->where('user_id', $u->id)->delete();
+        DB::table((new \App\Models\UserModule)->getTable())->where('user_id', $u->id)->delete();
         $this->get('/daily-check')->assertForbidden();
         $this->post('/daily-check', ['lookup' => 'qr', 'code' => $m->qr_value])->assertForbidden();
         $this->get('/')->assertOk()->assertSee('Belum ada modul');
@@ -141,7 +141,7 @@ class AuthorizationTest extends TestCase
         $this->post('/reviews/transfers/1', ['decision' => 'approved', 'reason' => 'x'])->assertNotFound();
         $this->assertFalse($u->can('transfers.decide'));
         $this->assertFalse($u->can('inspections.verify'));
-        DB::table('user_modules')->insert(['user_id' => $u->id, 'module' => 'transfers']);
+        DB::table((new \App\Models\UserModule)->getTable())->insert(['user_id' => $u->id, 'module' => 'transfers']);
         $this->get('/reviews')->assertOk();
         $this->assertTrue($u->can('transfers.decide'));
         $this->assertFalse($u->can('inspections.verify'));

@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class AccessRole extends Model
 {
-    protected $table = 'roles';
+    protected $table = 'mstrs_roles';
 
     protected $guarded = ['id'];
 
     public function permissions()
     {
-        return $this->belongsToMany(Permission::class, 'role_permissions', 'role_id', 'permission_id');
+        return $this->belongsToMany(Permission::class, 'mstrs_role_permissions', 'role_id', 'permission_id');
     }
 }
